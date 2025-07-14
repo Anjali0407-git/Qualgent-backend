@@ -2,8 +2,11 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 require('dotenv').config();
-
+const categoryRoutes = require('./routes/Category');
 const authRoutes = require('./routes/auth');
+const testCaseRoutes = require("./routes/testCase");
+const fileRoutes = require("./routes/files");
+
 
 const app = express();
 app.use(express.json());
@@ -14,12 +17,11 @@ app.use(cors({
   allowedHeaders: ['Content-Type','Authorization']
 }));
 
-// // if you need to handle pre-flight manually, you can also add:
-// app.options('*', cors({
-//   origin: '*'
-// }));
 
 app.use('/api/auth', authRoutes);
+app.use('/api/categories', categoryRoutes);
+app.use("/api/testcases", testCaseRoutes);
+app.use("/api/files", fileRoutes);
 
 mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
     .then(() => app.listen(5000, () => console.log('Server started on port 5000')))
