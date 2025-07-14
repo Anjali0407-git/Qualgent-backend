@@ -17,6 +17,9 @@ app.use(cors({
   allowedHeaders: ['Content-Type','Authorization']
 }));
 
+app.get('/', (req, res) => {
+  res.send('Server working');
+});
 
 app.use('/api/auth', authRoutes);
 app.use('/api/categories', categoryRoutes);
