@@ -65,13 +65,13 @@ router.post("/search", auth, async (req, res) => {
 
     if (filters.category) {
       // Since category is an ObjectId reference, do a lookup by name
-      // First find matching categories by name (case-insensitive)
+        // First find matching categories by name (case-insensitive)
         const cat = await Category.findOne({ name: new RegExp(filters.category, "i") });
       if (cat) {
         mongoQuery.category = cat._id;
       } else {
-        // No category match, return empty result
-        return res.json([]);
+          console.log("No matching category found for:", filters.category);
+          mongoQuery.category = null;
       }
     }
 
