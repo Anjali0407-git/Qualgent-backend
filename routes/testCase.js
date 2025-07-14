@@ -2,6 +2,99 @@ const express = require("express");
 const router = express.Router();
 const auth = require("../middleware/auth");
 const TestCase = require("../models/TestCase");
+const Category = require("../models/Category");
+const { cleanJSON } = require("../utils/aiResponseUtils");
+
+const OpenAI = require("openai");
+
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
+
+// POST /api/testcases/search
+router.post("/search", auth, async (req, res) => {
+  const { query } = req.body;
+  if (!query) return res.status(400).json({ msg: "Query is required" });
+
+  try {
+    // Step 1: Ask AI to parse the natural language query to filters
+    const prompt = `
+        You are an assistant that extracts filters from natural language queries to search test cases.
+        Available filters: category (string), name (string), description (string).
+        Given this query, output a JSON object with these filters to apply in MongoDB find.
+        Example:
+        Query: "show me all tests in the unit testing category"
+        Output: { "category": "unit testing" }
+
+        Query: "${query}"
+        Output:
+        `;
+
+    const response = await openai.chat.completions.create({
+    model: "gpt-4o-mini",  // or your preferred model
+    messages: [
+        {
+        role: "system",
+        content:
+            "You are an assistant that extracts filters from natural language queries to search test cases. Available filters: category (string), name (string), description (string).",
+        },
+        {
+        role: "user",
+        content: `Query: "${query}"\nOutput a JSON object with these filters.`,
+        },
+    ],
+    temperature: 0,
+    max_tokens: 150,
+    });
+
+      const text = response.choices[0].message.content.trim();
+      console.log("Parsed filters:", text);
+      const cleanText = cleanJSON(text);
+
+    let filters = {};
+    try {
+      filters = JSON.parse(cleanText);
+    } catch (e) {
+        // fallback: no filters
+        console.error("Failed to parse AI response as JSON", e);
+      filters = {};
+    }
+
+    // Build MongoDB query
+    const mongoQuery = { user: req.user };
+
+    if (filters.category) {
+      // Since category is an ObjectId reference, do a lookup by name
+      // First find matching categories by name (case-insensitive)
+        const cat = await Category.findOne({ name: new RegExp(filters.category, "i") });
+      if (cat) {
+        mongoQuery.category = cat._id;
+      } else {
+        // No category match, return empty result
+        return res.json([]);
+      }
+    }
+
+    if (filters.name) {
+      mongoQuery.name = { $regex: filters.name, $options: "i" };
+    }
+    if (filters.description) {
+      mongoQuery.description = { $regex: filters.description, $options: "i" };
+      }
+      console.log("MongoDB query:", mongoQuery);
+
+    // Query DB
+    const testCases = await TestCase.find(mongoQuery)
+      .populate("category")
+      .populate("files")
+      .sort({ updatedAt: -1 });
+
+    res.json(testCases);
+  } catch (err) {
+    console.error("AI search error", err);
+    res.status(500).json({ msg: "Server error" });
+  }
+});
 
 // GET all test cases, populate category and files
 router.get("/", auth, async (req, res) => {
