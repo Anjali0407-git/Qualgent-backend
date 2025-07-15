@@ -6,6 +6,7 @@ const categoryRoutes = require('./routes/Category');
 const authRoutes = require('./routes/auth');
 const testCaseRoutes = require("./routes/testCase");
 const fileRoutes = require("./routes/files");
+const queueRoutes = require("./routes/queue");
 
 
 const app = express();
@@ -25,6 +26,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use("/api/testcases", testCaseRoutes);
 app.use("/api/files", fileRoutes);
+app.use("/api/queues", queueRoutes);
 
 mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
   .then(() => {
